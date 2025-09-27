@@ -5,68 +5,64 @@
 - **One-liner:** Manual edit of Nano Banana generated images
 - **Problem statement:** Do you ever get an AI generated image that's almost there, but takes forever to describe the last bit of changes by prompt? This tool allows you to edit the image directly, saving you from the prompt hell.
 - **Success metrics (quantitative):** n/a
-- **Out of scope / Non-goals:** support manual edit of images only, do not deal with previous generation or the post processing of image of image.
+- **Out of scope / Non-goals:** support manual edit of images only; no pixel-faithful segmentation; no upstream image-generation workflow beyond element extraction.
 
 ## 2) Users & Use Cases
-- **Personas:** non professional designer
-- **Primary jobs-to-be-done:** (fill)
-- **Top scenarios / stories:** (fill)
+- **Personas:** non-professional designer
+- **Primary jobs-to-be-done:** allow user to manually edit directly on an image, especially for hard-to-describe parts/actions
+- **Top scenarios / stories:** user prompts an LLM to generate an image; uses the tool to cut elements into layers and rearrange; optionally prompts the LLM again for refinement
 
 ## 3) Requirements
+
 ### Functional
 - Import image
-- User prompts (NL + clicks/boxes)
-- AI segmentation (server or client)
-- Create layers from masks
-- Move/scale/rotate
+- **Natural language command (fixed):** `select top 10 elements and ...`
+- **AI generative element extraction using Gemini** (produces transparent PNGs + proposed positions; not pixel-faithful)
+- Create **top 10 elements (chosen by Gemini)** and background as transparent PNGs, plus their target locations on the original image
+- Each element (and background) is created as a layer
+- Reassemble the original scene from the element and background layers
+- Move/scale/rotate each layer
 - Z-order control
 - Export (PNG with alpha / PSD-like JSON)
 - Undo/redo, history
 
 ### Non-Functional (NFRs)
-- **Latency targets:** e.g., first mask < 1.5s p95
-- **Accuracy targets:** IoU vs. human mask > X
+- **Latency targets:** n/a
+- **Accuracy targets:** n/a (no IoU since output is generative)
 - **Reliability:** uptime, retries
-- **Privacy/Security:** image retention policy, PII handling
-- **Browser support:** desktop Chrome/Edge/Safari, touch support
-- **Accessibility:** keyboard ops; ARIA for controls
+- **Privacy/Security:** n/a
+- **Browser support:** Chrome
+- **Accessibility:** keyboard and mouse ops
 
 ### Constraints & Assumptions
-- Client can run WebGPU? Fallback to server?
 - Max image size; memory limits
-- Allowed third-party services (if any)
+- No third-party services, except API calls for Gemini / Nano Banana
 
 ## 4) User Experience
-- **Flows:** (import → prompt → preview → refine → export)
-- **Wireframes/links:** (paste Figma link)
+- **Flows:** import → **fixed NL command** → preview elements → manual refine → export
+- **Wireframes/links:** text box to import original image, undo/redo buttons, canvas for editing, textbox for Gemini API key, export button
 - **Empty/Loading/Error states:** (fill)
 
 ## 5) API & Data Contracts
-### Action DSL (client)
-```json
-{
-  "actions": [
-    {"op":"segment","target":{"query":"<string>"},"prompt":{"type":"box|points|auto","box":[x0,y0,x1,y1],"points":[[x,y,label],...]},"result_layer_name":"<id>"},
-    {"op":"transform","layer":"<id>","translate":[dx,dy],"scale":1.0,"rotate_deg":0},
-    {"op":"reorder","layer":"<id>","zAction":"bringToFront|sendToBack|bringInFrontOf","relativeTo":"<id>"}
-  ]
-}
-```
+- **Gemini API (generative):** accepts the original image and the fixed NL command `select top 10 elements and ...`; returns:
+  ```json
+  {
+    "background": "data:image/png;base64,...",
+    "elements": [
+      {"label":"car","png":"data:image/png;base64,...","bbox":[x,y,w,h],"rotation":0,"zOrder":2}
+    ]
+  }
 
 
-/nl/plan request/response (see docs/api.md)
-
-/segment request/response (RLE/PNG mask; see docs/api.md)
-
-Scene JSON format (layers, masks, transforms) (fill)
+Scene JSON format: layers with PNG sources, transforms, z-order
 
 6) Architecture (Draft)
 
-Front end: Konva.js or Fabric.js, state store, history stack
+Front end: Fabric.js, state store, history stack
 
-Orchestrator: LLM for planning + grounding
+Generative extraction: Gemini creates element PNGs + background and proposes locations (not pixel-faithful)
 
-Segmentation service: SAM (server), alternative: GrabCut/ISNet
+Image Canvas: reassemble element images as layers; allow move/scale/rotate; change z-order
 
 Storage: temp image blobs, signed URLs
 
@@ -76,9 +72,9 @@ Telemetry: latency, errors, usage events
 
 M0: Spec sign-off
 
-M1: Thin slice (import → single mask via server → move/scale → export)
+M1: Thin slice (import → NL generate-elements via Gemini → layers on canvas → move/scale/rotate → export)
 
-M2: NL commands + grounding
+M2: NL pipeline enhancements (disambiguation prompts, retries, quality controls)
 
 M3: Multi-object, z-order, undo/redo
 
@@ -86,24 +82,24 @@ M4: Polishing, a11y, docs
 
 8) Acceptance Criteria
 
-Task A: “Cut out the person; put in front of the car.” completes in < Xs, visual check passes
+Task A: “Cut out the person; put in front of the car.” — command returns elements/background; user can place the person layer in front and export successfully (visual check passes)
 
-Task B: Background removal quality ≥ target IoU on test set
+Task B: Running the fixed command returns 8–12 elements plus background as transparent PNGs placed reasonably on canvas; manual edits and export succeed
 
 API contracts stable and documented
 
 9) Risks & Mitigations
 
-WebGPU availability → server fallback
+Generative mismatch (identity/style/scale) → allow manual editing; add retry/alternative prompts
 
-Memory usage on large images → tiled processing
+Memory usage on large images → tiled processing or preview-scale workflow
 
-Ambiguous NL commands → disambiguation UI
+Ambiguous NL outputs → simple disambiguation UI
 
 10) Open Questions
 
-Which stack (Fabric vs. Konva)?
+Export formats (actual PSD later?) vs PSD-like JSON
 
-Self-hosted vs. managed inference?
+Short-TTL storage vs browser-only
 
-Export formats (PSD? layered PNG?)
+Max image size and concurrency limits
