@@ -12,3 +12,12 @@ Manual edit of Nano Banana generated images. This tool lets users directly edit 
 ## Development (to be expanded in scaffold PR)
 - Node 20+
 - `npm ci`
+
+## Development Workflow
+- Work via Codex + GitHub PRs.
+- Each PR deploys automatically to Vercel Preview.
+- Production deploys from `main`.
+
+## Env Vars
+- Set `VITE_GEMINI_API_KEY` in Vercel (Preview + Production).
+- Locally (optional): create .env with VITE_GEMINI_API_KEY=...
