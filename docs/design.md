@@ -1,38 +1,18 @@
-System Design — BananaPeel
-A) Context & Goals
+# Design Spec — BananaPeel
 
-Summary diagram (boxes & arrows)
+> Draft aligned with `docs/spec.md` requirement spec.
 
-B) Detailed Components
+---
 
-Client: canvas engine, mask application, transforms, z-order
+## 1) Purpose & Scope
+- **Goal:** Implement a desktop Chrome web app that lets a non-professional designer manually refine AI images by editing element layers (move/scale/rotate), reordering z-index, deleting/adding layers, and exporting PNG + Scene JSON + per-element PNGs.
+- **Out of scope (MVP):** Pixel-faithful segmentation, mobile/tablet support, cloud storage, real PSD export.
 
-LLM Orchestrator: prompt templates, grounding strategy
+---
 
-Segmentation: model choice, hardware, batching, warmup
+## 2) System Overview
 
-API: endpoints, auth, rate limits
-
-Data: object store layout, TTLs
-
-C) Flows
-
-NL → plan → ground → SAM → actions → apply
-
-Manual box/points → SAM → mask → layer
-
-D) Performance Planning
-
-Budget per step (ms)
-
-Caching layers/masks; RLE vs. PNG payloads
-
-E) Security & Privacy
-
-Data paths; encryption; logging policy; PII
-
-F) Ops
-
-CI/CD, canary, blue/green
-
-Observability (metrics, traces, logs)
+### 2.1 High-level Architecture (MVP)
+- **Client-only Web App (Chrome).** No backend. Storage is in-browser (memory / object URLs).
+- **Core libs:** Fabric.js (canvas & transforms), Zustand (state store).
+- **External:** Gemini (element generation API).
