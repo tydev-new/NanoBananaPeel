@@ -1,0 +1,32 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Only run Node steps if a package.json exists
+      - name: Install deps
+        if: ${{ hashFiles('package.json') != '' }}
+        run: npm install
+
+      - name: Lint
+        if: ${{ hashFiles('package.json') != '' }}
+        run: npm run lint --if-present
+
+      - name: Build
+        if: ${{ hashFiles('package.json') != '' }}
+        run: npm run build --if-present
+
+      - name: Test
+        if: ${{ hashFiles('package.json') != '' }}
+        run: npm test -- --watch=false
